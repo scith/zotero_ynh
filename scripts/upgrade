@@ -66,7 +66,7 @@ if [[ $is_public -eq 1 ]]; then
 fi
 
 # Open the webDav path and password protect it
-ynh_app_setting_set "$app" unprotected_uris "/zotero"
+ynh_app_setting_set "$app" unprotected_uris "/sync"
 
 # Reload nginx service
 sudo service nginx reload
