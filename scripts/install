@@ -1,0 +1,83 @@
+#!/bin/bash
+
+# Exit on command errors and treat unset variables as an error
+set -eu
+
+# This is a multi-instance app, meaning it can be installed several times independently
+app=$YNH_APP_INSTANCE_NAME
+
+# Retrieve arguments
+domain=$YNH_APP_ARG_DOMAIN
+path_url=$YNH_APP_ARG_PATH
+is_public=$YNH_APP_ARG_IS_PUBLIC
+api_key=$YNH_APP_ARG_API_KEY
+user_id=$YNH_APP_ARG_USER_ID
+
+# Source YunoHost helpers
+source /usr/share/yunohost/helpers
+
+# Save app settings
+ynh_app_setting_set "$app" is_public "$is_public"
+ynh_app_setting_set "$app" api_key "$api_key"
+ynh_app_setting_set "$app" user_id "$user_id"
+
+# Check domain/path availability
+sudo yunohost app checkurl "${domain}${path_url}" -a "$app" \
+    || ynh_die "Path not available: ${domain}${path_url}"
+
+# Copy source files
+src_path=/var/www/$app
+sudo mkdir -p $src_path
+sudo cp -a ../sources/. $src_path
+
+# Basic auth
+basicauthname="zotero"
+basicauthpass=$(ynh_string_random 8)
+ynh_app_setting_set "$app" basicauthname "$basicauthname"
+ynh_app_setting_set "$app" basicauthpass "$basicauthpass"
+
+# Generation of the htpasswd file according https://www.nginx.com/resources/wiki/community/faq/
+SALT="$(openssl rand -base64 3)"
+(SHA1=$(printf "$basicauthpass$SALT" |
+openssl dgst -binary -sha1 | xxd -ps |
+sed 's#$#'"`echo -n $SALT | xxd -ps`"'#' |
+xxd -r -ps |
+base64);printf "$basicauthname:{SSHA}$SHA1\n" >> ../.htpasswd)
+sudo cp ../.htpasswd $src_path/.htpasswd
+sudo chmod 440 $src_path/.htpasswd
+
+# Change API_key and user_ID in settings.php
+sudo sed -i "s/YNHAPIKEY/$api_key/" $src_path/settings.php
+sudo sed -i "s/YNHUSERID/$user_id/" $src_path/settings.php
+sudo sed -i "s/YNHAUTHNAME/$basicauthname/" $src_path/settings.php
+sudo sed -i "s/YNHAUTHPASS/$basicauthpass/" $src_path/settings.php
+
+# Set permissions to app files
+sudo chown -R www-data: $src_path
+
+# Modify Nginx configuration file and copy it to Nginx conf directory
+nginx_conf=../conf/nginx.conf
+sed -i "s@YNH_WWW_PATH@$path_url@g" $nginx_conf
+sed -i "s@YNH_WWW_ALIAS@$src_path/@g" $nginx_conf
+sed -i "s@YNH_WWW_APP@$app@g" $nginx_conf
+sudo cp $nginx_conf /etc/nginx/conf.d/$domain.d/$app.conf
+
+# Modify PHP-FPM pool configuration and copy it to the pool directory
+sed -i "s@YNH_WWW_APP@$app@g" ../conf/php-fpm.conf
+sed -i "s@YNH_WWW_ALIAS@$src_path/@g" ../conf/php-fpm.conf
+finalphpconf=/etc/php5/fpm/pool.d/$app.conf
+sudo cp ../conf/php-fpm.conf $finalphpconf
+sudo chown root: $finalphpconf
+sudo chmod 644 $finalphpconf
+sudo service php5-fpm reload
+
+# If app is public, add url to SSOWat conf as skipped_uris
+if [[ $is_public -eq 1 ]]; then
+  ynh_app_setting_set "$app" unprotected_uris "/"
+fi
+
+# Open the webDav path and password protect it
+ynh_app_setting_set "$app" unprotected_uris "/zotero"
+
+# Reload services
+sudo service nginx reload

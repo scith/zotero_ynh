@@ -1,0 +1,69 @@
+{
+    "name": "Zotero",
+    "id": "zotero",
+    "packaging_format": 1,
+    "description": {
+        "en": "Sync and access your Zotero library.",
+        "fr": "Synchronisez et consultez votre bibliothèque Zotero."
+    },
+    "url": "https://zotero.org",
+    "license": "free",
+    "maintainer": {
+        "name": "scith",
+        "url": "https://github.com/scith"
+    },
+    "requirements": {
+        "yunohost": ">> 2.4.0"
+    },
+    "multi_instance": true,
+    "services": [
+        "nginx",
+        "php5-fpm"
+    ],
+    "arguments": {
+        "install" : [
+            {
+                "name": "domain",
+                "type": "domain",
+                "ask": {
+                    "en": "Choose a domain name for Zotero",
+                    "fr": "Choisissez un nom de domaine pour Zotero"
+                },
+                "example": "example.com"
+            },
+            {
+                "name": "path",
+                "type": "path",
+                "ask": {
+                    "en": "Choose a path for Zotero",
+                    "fr": "Choisissez un chemin pour Zotero"
+                },
+                "example": "/zotero",
+                "default": "/zotero"
+            },
+            {
+                "name": "is_public",
+                "type": "boolean",
+                "ask": {
+                    "en": "Is it a public application?",
+                    "fr": "Est-ce une application publique ?"
+                },
+                "default": true
+            },
+            {
+                "name": "api_key",
+                "ask": {
+                    "en": "Enter your Zotero API key. Login to Zotero.org, navigate to Settings > Feeds/API and create a new API key. Give it a name and leave the other parameters unchanged. Once created, copy and paste the key.",
+                    "fr": "Entrez ici votre clé API Zotero. Pour l'obtenir, rendez-vous sur Zotero.org, puis Settings > Feeds/API et create a new API key. Choisissez un nom et laissez les autres paramètres inchangés. Une fois la clé créée, copiez-là ici."
+                }
+            },
+			{
+                "name": "user_id",
+                "ask": {
+                    "en": "Enter here your Zotero userID for API calls. It can be found in zotero.org > Settings > Feeds/API.",
+                    "fr": "Veuillez entrer ici votre Zotero userID pour l'appel API. Il se trouve sur zotero.org > Settings > Feeds/API."
+                }
+            }
+        ]
+    }
+}
